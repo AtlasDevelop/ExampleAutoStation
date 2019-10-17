@@ -1,0 +1,224 @@
+# Atlas Logging:
+#	 =>	Atlas.Log.info(arguemnts...)
+#	 =>	Atlas.Log.debug(arguments...)
+#	 =>	Atlas.Log.error(arguments...)
+
+# Atlas Launch Station Plugin:
+#	 =>	Atlas.launch_plugin(bundle, plugin)
+#	 =>	Atlas.launch_plugin(bundle, plugin, name)
+#	 =>	Atlas.launch_plugin(bundle, plugin, name, setup_parameters)
+
+# Atlas Teardown Station Plugin:
+#	 =>	Atlas.teardown_plugin(name)
+#	 =>	Atlas.teardown_plugin(name, teardown_parameters)
+
+#
+# App Setup:
+# * Called when app first connects to the atlas core and before the station is started
+# * Called when app first connects to the atlas core and before the station is started
+#
+
+app_setup(app)
+{
+    app.settings = {
+        "station-name" : "My AutoStation",
+        "force-fullscreen" : :FALSE:,
+
+        # "start-button" : {
+        #     "groups" : [{
+        #         "identifier" : "Group-1",
+        #         "units" : [
+        #                 {
+        #                     "identifier" : "Unit-1"
+        #                 },
+        #                 # {
+        #                 #     "identifier" : "Unit-2"
+        #                 # }
+        #                 ]
+        #     }]
+        # },
+        "custom-test-modes" : [
+            {
+                "name" : "GRR",
+                "base-test-mode" : "LineBringup"
+            },
+            {
+                "name" : "Calibration",
+                "base-test-mode" : "LineBringup"
+            },
+        ]
+    }
+}
+
+#
+# Station Setup:
+# * Called when core is starting your station for the first time (app start)
+#
+
+station_setup()
+{
+    # Log : Call takes any types and is variable argument
+    # Atlas.Log.info(arguemnts...)
+    # Atlas.Log.debug(arguments...)
+    # Atlas.Log.error(arguments...)
+    Atlas.Log.info("Setting up station")
+
+    # Define a dictionary to configure station level Bar
+    barConfig = {
+        "delay"	 : 0.5,
+        "repeat" : 5
+    }
+
+    # Plugin Launch : Station plugin are visible to all units.
+    # Atlas.launch_plugin(bundle, plugin)
+    # Atlas.launch_plugin(bundle, plugin, name)
+    # Atlas.launch_plugin(bundle, plugin, name, setup_parameters)
+    #Atlas.launch_plugin("FooBar", "Bar", "Bar", barConfig)
+    # GUCreator_unitConfig = {
+    # 	"generationInterval" : 16,
+    # 	"numberOfUnit" : 2,
+    # 	"enableDisappear" : :FALSE:,
+    # 	"disappearDelay" : 1
+    # }
+    # Atlas.launch_plugin("GUCreator", "UnitGenerator", GUCreator_unitConfig)
+
+    # GUCreator_groupConfig = {
+    # 	"generationInterval" : 15,
+    # 	"numberOfUnit" : 1,
+    # 	"enableDisappear" : :FALSE:,
+    # 	"disappearDelay" : 1,
+    # 	"numberOfGroups" : 1
+    # }
+    # Atlas.launch_plugin("GUCreator", "GroupGenerator", GUCreator_groupConfig)
+    # params={
+    #     "numberOfGroups":"1",
+    #     "numberOfUnit":"1",
+    #     "afterTestDelay":"2.0",
+    #     "showStartDialog":"0"
+    # }
+    # Atlas.launch_plugin("UIManual","UIManualPlugin","UIManualPlugin",params)
+
+    config={
+        "numberOfGroups":"1",
+        "numberOfUnit":"2", 
+    }
+    Atlas.launch_plugin("SocketAutoBundle","SocketAutoPlugin",config)
+    params={
+        "mode":"server",
+        "ip":"127.0.0.1",
+        "port":5555,
+    }
+    Atlas.call_plugin("SocketAutoPlugin", "open",params)
+}
+
+#
+# Station Teardown:
+# * Called when core is tearing down your station (app quit)
+#
+
+station_teardown()
+{
+    Atlas.Log.info("Station teardown")
+
+    # Plugin Teardown :
+    # Atlas.teardown_plugin(name)
+    # Atlas.teardown_plugin(name, teardown_parameters)
+    Atlas.teardown_plugin("UIManualPlugin")
+
+
+    Atlas.teardown_plugin("SocketAutoPlugin")
+
+}
+
+#
+# Unit Setup:
+# * Called only when core receives new unit.
+#
+getRushFiles()
+{
+    return [
+        "UI.rush",
+        "Helper.rush",
+        "PDCA.rush"
+    ]
+}
+load_production_configs(unit){
+    rushFiles=getRushFiles()
+    Atlas.Log.info("Started Production", unit)
+    rushFiles = rushFiles + ["Test.rush"]
+    apply(Atlas.set_sequence, [unit] + rushFiles)
+    #Atlas.set_sequence(unit, "NormalSequencer.rush")
+    serialConfig={
+        "url":'/dev/tty.usbmodem14201',
+        "autoOpen":0,
+        "config":{
+            "isSimulated":0,
+            "baudRate":9600,
+            "RTSCTSFC":0,
+            "DTRDSRFC":0,
+            "DCDOFC":0,
+            "RTS":0,
+            "DTR":0
+        }
+    }
+    Atlas.launch_plugin(unit,"MySerialBundle","MySerialPlugin","MySerialPlugin",serialConfig)
+}
+unit_setup(unit)
+{
+    Atlas.Log.info("Started", unit)
+
+    if (unit.test_mode == Atlas.TestModes.Production)  # :TRUE: for "DOE 1" and "DOE 2"
+    {
+
+    }
+    load_production_configs(unit)
+
+
+    # if (unit.test_mode == Atlas.TestModes.LineBringup)
+    # {
+    # 	Atlas.Log.info("Started LineBringup", unit)
+    # 	Atlas.set_sequence(unit, "TestPlanSetup.rush")
+    # }
+
+
+    # Sequence Selection : Select the sequence to run the unit, can branch and select a GRR unit based on unit context info
+
+    # Plugin Launch : launches plugin visible only to this unit
+    # Atlas.launch_plugin(unit, bundle, plugin)
+    # Atlas.launch_plugin(unit, bundle, plugin, name)
+    # Atlas.launch_plugin(unit, bundle, plugin, name, setup_parameters)
+    #Atlas.launch_plugin(unit, "FooBar", "Foo") #
+
+    barConfig = {
+        "delay"	 : 0.1,
+        "repeat" : 5
+    }
+
+    Atlas.launch_plugin(unit, "CallTermBundle", "CallTermPlugin")
+}
+
+#
+# Unit Setup:
+# * <Fill In>
+#
+
+unit_teardown(unit)
+{
+    Atlas.Log.info(unit, "Finished")
+    Atlas.teardown_plugin(unit,"MySerialPlugin")
+    //showDialog("Start Test?")
+}
+
+group_setup(group)
+{
+    Atlas.Log.info("Setting up Group")
+    #Atlas.launch_plugin(group, "FooBar", "Foo")
+    for unit in group.units {
+        unit_setup(unit)
+    }
+}
+
+group_teardown(group)
+{
+    Atlas.Log.info("Group teardown")
+}

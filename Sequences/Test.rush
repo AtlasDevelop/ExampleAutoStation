@@ -1,0 +1,179 @@
+main() {
+
+    if :TRUE: {
+        params={
+            "status":"TESTING",
+        }
+        Atlas.execute_test("StartTesting",Atlas.call_plugin_sync,"SocketAutoPlugin","updateStatus",params)
+        #SN = scanSnWindow("Scan SN:")
+        # SN="123453"
+        test_mode=getTestMode()
+        Atlas.Log.info("Unit test mode:" +test_mode)
+
+
+        msg=Atlas.execute_test("GetSNs",Atlas.call_plugin_sync,"SocketAutoPlugin","getSNs",{"mode":"normal"})
+
+        Atlas.Log.info("unit info:",Atlas.Unit.unit_identifier)
+        Atlas.Log.info("msg of SNs:",msg)
+
+        SN=msg[Atlas.Unit.unit_identifier] onError -> SN="NA"
+
+        Globals.dut_sn=SN
+
+
+        # Record Unit ID:"Unit-1"
+        Atlas.execute_test("Record id",recordAttribute,"Unit id",Atlas.Unit.unit_identifier)
+        # Record Unit SN:"DLC123WESD33"
+        Atlas.execute_test("Record SN",recordAttribute,"Unit sn",SN)
+
+        if !size(SN) == 6{
+            params={
+                "id":Atlas.Unit.unit_identifier,
+                "sn":SN,
+                "result":"PASS",
+                "info":"test"
+            }
+            Atlas.execute_test("OutputResult",Atlas.call_plugin,"SocketAutoPlugin","outputResult",params)
+            #ShowMessageBox("Error","SN length error")
+            raise exception("sn length is wrong")
+        }else{
+            # 需要开启PDCA
+            # Atlas.execute_test("RecordSN",addDevAttr,"SN",SN) #onError e -> finish_with_error(e)
+            Atlas.execute_test("RecordSN",addDeviceAttribute,"serialnumber",SN)
+            run_rush_testSequences(SN)
+        }
+
+        params={
+            "id":Atlas.Unit.unit_identifier,
+            "sn":SN,
+            "result":"PASS",
+            "info":"test"
+        }
+        Atlas.execute_test("OutputResult",Atlas.call_plugin,"SocketAutoPlugin","outputResult",params)
+
+        System.sleep(2.0)
+
+        params={
+            "status":"FINISHED",
+        }
+        Atlas.execute_test("FinishTesting",Atlas.call_plugin_sync,"SocketAutoPlugin","updateStatus",params)
+
+        #ShowMessageBox("Confrim","Start Test")
+    } onError e -> finishOnErr(e)
+
+
+
+}
+finishOnErr(e){
+    Atlas.Log.error("caught exception", e.className)
+    params={
+        "id":Atlas.Unit.unit_identifier,
+        "sn":Globals.dut_sn,
+        "result":"ERROR",
+        "info":"test",
+    }
+    Atlas.execute_test("OutputResult",Atlas.call_plugin,"SocketAutoPlugin","outputResult",params)
+
+    params={
+        "status":"FINISHED",
+    }
+    Atlas.execute_test("FinishTesting",Atlas.call_plugin_sync,"SocketAutoPlugin","updateStatus",params)
+
+    raise exception("fatal error!")
+}
+run_rush_testSequences(sn){
+    # //show dialog for connecting DUT
+    # //Atlas.execute_test("Dialog",showDialogSync,"Connect DUT, OK?") onError e ->finish_with_error(e)
+    # //test -item Open Serial Port
+    # param={"url":"/dev/tty.usbmodem14201" ,
+    #        "autoOpen":0 ,
+    #        "config": {
+    #            "isSimulated":1 ,
+    #            "baudRate":9600 ,
+    #            "RTSCTSFC":0 ,
+    #            "DTRDSRFC":0 ,
+    #            "DCDOFC":0 ,
+    #            "RTS":0 ,
+    #            "DTR":0}
+    #        }
+    # Atlas.execute_test("Open Serial", testThisItemWithStringVal, "MySerialPlugin","openSerial",param,"OK") onError e ->finish_with_error(e)
+    # System.sleep(2.0)
+    # //test -item Set LED on
+    # param={"cmd":"set LED on" ,
+    #        "timeout":2.0 ,
+    #        "matchStr":"OK",
+    #        "ACK":"OK^_^"}
+    # Atlas.execute_test("Set LED ON", testCallPluginWithoutLimit, "MySerialPlugin","checkStrVal",param) onError e ->finish_with_error(e)
+    # //test -item Read step
+    # param={"cmd":"readStep" ,
+    #        "timeout":2.0 ,
+    #        "pattern":"([\\s\\S]*?)\\*",
+    #        "preLen":0,
+    #        "sufLen":1
+    #        "ACK":"25*_*"}
+    # limit=Atlas.create_limit("Read step", 60, 10, :NIL:, :NIL:, "lala")
+    # doe_limit=Atlas.create_limit("DOE", 60, 20, :NIL:, :NIL:, "lala")
+    # limits={"stepLimit":limit, "DOE":doe_limit}
+    # Atlas.execute_test("Read Step", testCallPluginWitLimit, "MySerialPlugin","checkNumVal",param,limits) onError e ->finish_with_error(e)
+    # //test -item Read temperature
+    # param={"cmd":"readTmp" ,
+    #        "timeout":2.0 ,
+    #        "pattern":"([\\s\\S]*?)C\\*",
+    #        "preLen":0,
+    #        "sufLen":2
+    #        "ACK":"35.67C*_*"}
+    # limit=Atlas.create_limit("Read temp", 42.10, 32.56, :NIL:, :NIL:, "C")
+    # limits={"tempLimit":limit}
+    # Atlas.execute_test("Read Temp", testCallPluginWitLimit, "MySerialPlugin","checkNumVal",param,limits) onError e ->finish_with_error(e)
+    # //test -item Set LED off
+    # param={"cmd":"set LED off" ,
+    #        "timeout":2.0 ,
+    #        "matchStr":"OK",
+    #        "ACK":"OK^_^"}
+    # Atlas.execute_test("Set LED OFF", testCallPluginWithoutLimit, "MySerialPlugin","checkStrVal",param) onError e ->finish_with_error(e)
+    # //test -item Read Version
+    # param={"cmd":"version" ,
+    #        "timeout":2.0 ,
+    #        "matchStr":"Arduino-01-08-02-P",
+    #        "ACK":"<Arduino-01-08-02-P>"}
+    # Atlas.execute_test("Read Version", testCallPluginWithoutLimit, "MySerialPlugin","checkStrVal",param) onError e ->finish_with_error(e)
+    # //test CallTermBundle
+    # param={
+    #     "cmd":"python /Users/weidongcao/Desktop/erbium_rawdata/DrawWave/print_test.py"
+    # }
+
+    # thisValue=Atlas.call_plugin("CallTermPlugin","ExeCmd",param)
+    # Atlas.Log.info("testCallPluginWithoutLimit thisValue:" +thisValue)
+
+    # # Atlas.execute_test("Call Python", testCallPluginWithoutLimit, "CallTermPlugin","test",param) onError e ->finish_with_error(e)
+
+    # System.sleep(2.0)
+
+
+    System.sleep(10.0)
+
+
+
+
+}
+
+testCallPluginWithoutLimit(plugin_name,plugin_cmd,param){
+    thisValue=Atlas.call_plugin(plugin_name,plugin_cmd,param) onError e -> thisValue="FAIL"
+    Atlas.Log.info("testCallPluginWithoutLimit thisValue:" +thisValue)
+}
+testCallPluginWitLimit(plugin_name,plugin_cmd,param,limits){
+    thisValue=Atlas.call_plugin(plugin_name,plugin_cmd,param,limits) onError e -> thisValue="NA"
+    Atlas.Log.info("testCallPluginWitLimit thisValue:" +thisValue)
+}
+testThisItemWithStringVal(plugin_name,plugin_cmd,param,matchVal){
+    thisValue=Atlas.call_plugin(plugin_name,plugin_cmd,param)
+    thisResult=True
+    if(Strings.location_of_substring(thisValue,matchVal) == :NIL:){
+        Atlas.Log.info("test result:Fail")
+        thisResult=False
+        failMsg="value not match"
+    }
+
+    Atlas.create_record([matchVal,thisValue],thisResult)
+
+}
